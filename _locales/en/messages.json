@@ -1,4 +1,12 @@
 {
+  "appDescription": {
+    "message": "Step through paused YouTube videos frame by frame with the mouse wheel. Shows frame number and timecode in an overlay.",
+    "description": "Extension description used for the manifest description field (same text as the short description in docs/store-listing.md)"
+  },
+  "uiLanguage": {
+    "message": "en",
+    "description": "Name of the locale the UI strings actually resolved to. Used for documentElement.lang (the message locale, not the browser UI language)"
+  },
   "actionTitle": {
     "message": "YouTube Frame Scrub",
     "description": "Title shown on the toolbar action icon"

@@ -1,4 +1,12 @@
 {
+  "appDescription": {
+    "message": "一時停止中の YouTube 動画をマウスホイールでコマ送り・コマ戻しする拡張機能。フレーム番号とタイムコードをオーバーレイ表示します。",
+    "description": "manifest の description に使う拡張機能の説明文(docs/store-listing.md の「簡単な説明」と同一)"
+  },
+  "uiLanguage": {
+    "message": "ja",
+    "description": "表示文言が実際に解決されたロケール名。documentElement.lang の設定に使う(ブラウザ UI 言語ではなく文言のロケール)"
+  },
   "actionTitle": {
     "message": "YouTube コマ送り",
     "description": "ツールバーの拡張機能アイコンに表示されるタイトル"
