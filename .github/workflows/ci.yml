@@ -24,7 +24,7 @@ jobs:
       - run: npm run build
       - run: npm run pack
       - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           name: yt-frame-scrub-zip
           path: yt-frame-scrub-*.zip
