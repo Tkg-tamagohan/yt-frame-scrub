@@ -3,6 +3,7 @@
 要件定義の協議項目に対する決定を記録する。
 項目 ID は協議時の一覧を引き継いだ識別子で、仕様の本文に関わる決定（A〜G）は `requirements-definition.md` の該当箇所に「仕様決定 X」の形で参照を付記している。
 リポジトリ名とライセンスを定めた H・I は要件定義書の対象外事項であり、それぞれリポジトリ名と `LICENSE` に体現されるため本文への付記はない。
+J〜N は監査項目「CI ワークフロー不在」に対する計画書で採択された運用面の決定であり、製品仕様に関わらないため本文への付記はない。
 他の文書から決定へ言及するときは同じ ID（「仕様決定 A」など）を使う。
 
 | ID | 項目 | 決定内容 |
@@ -16,3 +17,8 @@
 | G | 配布形態 | ローカル読み込み＋GitHub Release の zip＋Chrome Web Store 公開の 3 経路 |
 | H | リポジトリ名 | `yt-frame-scrub` |
 | I | ライセンス | MIT |
+| J | CI ワークフローの導入 | `.github/workflows/ci.yml` を追加し、`pull_request`・`push`（main）・`workflow_dispatch` をトリガに単一ジョブ `ci` で `npm ci`、typecheck、test、build、pack を順次実行する |
+| K | CI の Node バージョン | `.nvmrc` に `24` を置き、CI は `setup-node` の `node-version-file` で同じ版を読む。開発環境と CI の版指定を一箇所に集約する |
+| L | pack の CI 組み込み | CI で `npm run pack` を常時実行し、main push 時のみ生成 zip を `actions/upload-artifact` で保存する（保持期間は既定の 90 日） |
+| M | CI の必須チェック化 | ジョブ `ci` を必須ステータスチェックとする方針。ルールセット変更はリポジトリ設定であり、ユーザー作業として残す |
+| N | リリースワークフローの導入 | `.github/workflows/release.yml` を追加し、`v*` タグの push で pack と GitHub Release 作成（zip 添付、`--generate-notes` による本文生成）を自動化する。タグ名と `manifest.json` の version の一致を事前に検証する |
