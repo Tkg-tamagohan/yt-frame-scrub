@@ -18,7 +18,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(root, "..");
 const dist = join(repoRoot, "dist");
 
-// manifest.json と package.json の version が一致していることを先に確認する。
+// manifest.json・package.json・package-lock.json の version が一致していることを先に確認する。
 // タグ名と zip 名はこの値から生成するため、ずれたまま進めるとリリースが壊れる。
 const manifest = JSON.parse(
   readFileSync(join(repoRoot, "manifest.json"), "utf8"),
@@ -26,9 +26,21 @@ const manifest = JSON.parse(
 const pkg = JSON.parse(
   readFileSync(join(repoRoot, "package.json"), "utf8"),
 );
-if (manifest.version !== pkg.version) {
+const lock = JSON.parse(
+  readFileSync(join(repoRoot, "package-lock.json"), "utf8"),
+);
+// package-lock.json はルートと packages[""] の 2 箇所に version を持つ
+const versionSources = [
+  ["manifest.json", manifest.version],
+  ["package.json", pkg.version],
+  ["package-lock.json", lock.version],
+  ['package-lock.json (packages[""])', lock.packages?.[""]?.version],
+];
+if (versionSources.some(([, version]) => version !== manifest.version)) {
   console.error(
-    `manifest.json (${manifest.version}) と package.json (${pkg.version}) の version が一致しません。両方を同じ値に更新してください`,
+    `version が一致しません（${versionSources
+      .map(([name, version]) => `${name}: ${version}`)
+      .join(", ")}）。manifest.json と同じ値に更新してください`,
   );
   process.exit(1);
 }

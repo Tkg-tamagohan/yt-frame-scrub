@@ -12,36 +12,35 @@ Chrome Web Store への投稿は末尾の節で扱う。
 
 ## バージョンの保持場所と整合ルール
 
-バージョンを保持する場所は 3 つある。
+バージョンを保持する場所は 4 つある。
 
 - `manifest.json` の `version`。
   MV3 上必須の値で、zip のファイル名と chrome://extensions の表示に使われる。
 - `package.json` の `version`。
   `private: true` のためどのツールも参照しないが、慣習上 manifest と同じ値を保持する。
+- `package-lock.json` の `version`。
+  npm が `package.json` と同期して保持する値で、ルートの `version` と `packages[""]` の `version` の 2 箇所に記録される。
+  zip 名やタグには関与しないが、同じ値を保持する。
 - git タグ `v<version>`。
   `v` 接頭辞を付け、zip 名と同じバージョン値から作る。
 
-`manifest.json` と `package.json` の `version` が一致しない場合、`npm run pack` は不一致の旨を表示して中止する。
-両者のずれは遅くとも pack の時点で止まる。
+`manifest.json`、`package.json`、`package-lock.json` の `version` が一致しない場合、`npm run pack` は不一致の旨を表示して中止する。
+これらのずれは遅くとも pack の時点で止まる。
 
 ## 手順
 
 1. バージョンを更新する PR を作成する。
-   `manifest.json` と `package.json` の `version` を同じ値に手で更新する。
+   `manifest.json`、`package.json`、`package-lock.json` の `version` を同じ値に手で更新する。
+   `package-lock.json` にはルートと `packages[""]` の 2 箇所に version がある。
    `npm version` は使わない。
-   `package.json` しか更新しないため、manifest との間で無言のずれが起きる。
-2. PR をマージし、main のマージコミットにタグを打って push する。
+   `manifest.json` を更新しないため、manifest との間で無言のずれが起きる。
+2. PR をマージし、main を最新にする。
 
    ```bash
    git checkout main
    git pull
-   git tag v<version>
-   git push origin v<version>
    ```
 
-   タグの push は `.github/workflows/release.yml` のトリガでもある。
-   本節の手動経路と後述の自動経路は、どちらか一方で行う。
-   ワークフローが先にリリースを作成した場合、手順 4 の `gh release create` は同名リリースの競合で失敗するため、自動経路の後始末（生成された本文をテンプレートへ整える）に切り替える。
 3. パッケージを生成する。
 
    ```bash
@@ -52,7 +51,17 @@ Chrome Web Store への投稿は末尾の節で扱う。
    同名の zip は警告なく上書きされるため、バージョンを上げ忘れたまま実行しない。
    完了時に「次の手順」として、タグの作成と push、リリース作成の各コマンドが同じバージョン値から生成されて表示される。
    生成した zip の読み込み確認は `docs/manual-test.md` の MT-22 を参照する。
-4. リリースを作成し、zip を添付する。
+4. マージコミットにタグを打って push する。
+
+   ```bash
+   git tag v<version>
+   git push origin v<version>
+   ```
+
+   タグの push は `.github/workflows/release.yml` のトリガでもある。
+   本節の手動経路と後述の自動経路は、どちらか一方で行う。
+   ワークフローが先にリリースを作成した場合、手順 5 の `gh release create` は同名リリースの競合で失敗するため、自動経路の後始末（生成された本文をテンプレートへ整える）に切り替える。
+5. リリースを作成し、zip を添付する。
 
    ```bash
    gh release create v<version> yt-frame-scrub-<version>.zip
