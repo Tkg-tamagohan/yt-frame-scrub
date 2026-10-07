@@ -1,0 +1,106 @@
+{
+  "actionTitle": {
+    "message": "YouTube コマ送り",
+    "description": "ツールバーの拡張機能アイコンに表示されるタイトル"
+  },
+  "stateEnabled": {
+    "message": "有効",
+    "description": "機能有効状態を示す状態名(アイコンのタイトルなどで使用)"
+  },
+  "stateDisabled": {
+    "message": "無効",
+    "description": "機能無効状態を示す状態名(アイコンのタイトルなどで使用)"
+  },
+  "badgeOff": {
+    "message": "オフ",
+    "description": "機能無効時にアイコンへ重ねて表示する短いバッジ文言"
+  },
+  "optionsTitle": {
+    "message": "yt-frame-scrub 設定",
+    "description": "オプションページのタイトルと見出し"
+  },
+  "sectionGeneral": {
+    "message": "全般",
+    "description": "設定画面のセクション見出し(有効化・オーバーレイ)"
+  },
+  "sectionScrubbing": {
+    "message": "コマ送り",
+    "description": "設定画面のセクション見出し(スクロール動作の各設定)"
+  },
+  "optionEnabled": {
+    "message": "機能を有効にする",
+    "description": "機能の有効/無効を切り替えるチェックボックスのラベル"
+  },
+  "optionOverlayEnabled": {
+    "message": "オーバーレイを表示する",
+    "description": "オーバーレイ表示のオン/オフを切り替えるチェックボックスのラベル"
+  },
+  "optionOverlayEnabledHint": {
+    "message": "コマ送り中にフレーム番号・タイムコード・推定 fps をプレイヤー内に表示します",
+    "description": "オーバーレイ設定の説明文"
+  },
+  "optionInvertDirection": {
+    "message": "スクロール方向を反転する",
+    "description": "方向反転チェックボックスのラベル"
+  },
+  "optionInvertDirectionHint": {
+    "message": "オンにすると下スクロールがコマ送り、上スクロールがコマ戻しになります",
+    "description": "方向反転設定の説明文"
+  },
+  "optionCaptureModifier": {
+    "message": "スクロール捕捉の条件",
+    "description": "捕捉条件セレクトのラベル"
+  },
+  "captureModifierNone": {
+    "message": "常時捕捉",
+    "description": "捕捉条件の選択肢(修飾キーなし)"
+  },
+  "captureModifierAlt": {
+    "message": "Alt キー押下時のみ",
+    "description": "捕捉条件の選択肢(Alt)"
+  },
+  "captureModifierCtrl": {
+    "message": "Ctrl キー押下時のみ",
+    "description": "捕捉条件の選択肢(Ctrl)"
+  },
+  "captureModifierShift": {
+    "message": "Shift キー押下時のみ",
+    "description": "捕捉条件の選択肢(Shift)"
+  },
+  "optionStepThreshold": {
+    "message": "1 コマあたりのスクロール量(px)",
+    "description": "ホイール蓄積閾値の入力ラベル"
+  },
+  "optionStepThresholdHint": {
+    "message": "スクロール量の累積がこの値を超えるごとに 1 コマ移動します。小さいほど敏感になります",
+    "description": "ホイール蓄積閾値の説明文"
+  },
+  "optionShiftStepSize": {
+    "message": "Shift 併用時のコマ数",
+    "description": "Shift 併用の複数コマ移動の入力ラベル"
+  },
+  "shiftConflictNotice": {
+    "message": "Shift がスクロール捕捉の条件になるため、Shift 併用の複数コマ移動は利用できなくなります",
+    "description": "captureModifier=shift 選択時に表示する注意書き"
+  },
+  "optionManualFps": {
+    "message": "手動 fps",
+    "description": "手動 fps 入力のラベル"
+  },
+  "optionManualFpsHint": {
+    "message": "0 のとき自動検出を使い、検出に失敗した場合は 30 fps にフォールバックします",
+    "description": "手動 fps の説明文"
+  },
+  "statusSaved": {
+    "message": "保存しました",
+    "description": "設定保存が成功したときのステータス文言"
+  },
+  "statusInvalid": {
+    "message": "値が不正です",
+    "description": "入力値の検証に失敗したときのステータス文言"
+  },
+  "statusSaveFailed": {
+    "message": "保存に失敗しました",
+    "description": "chrome.storage への書き込みに失敗したときのステータス文言"
+  }
+}
