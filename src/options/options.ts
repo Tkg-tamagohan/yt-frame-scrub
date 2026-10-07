@@ -32,9 +32,23 @@ const shiftConflictNotice = document.getElementById(
 ) as HTMLElement;
 const statusElement = document.getElementById("status") as HTMLElement;
 
+type NumberKey = "stepThreshold" | "shiftStepSize" | "manualFps";
+
 /** 直近に確定した設定値。入力不正時の差し戻しと外部変更の反映に使う。 */
 let currentSettings: Settings;
 let statusTimer: number | undefined;
+
+/**
+ * 入力途中(未確定)の数値フィールド。
+ * 外部変更が届いても即時反映を保留し、確定または blur で解消する。
+ * チェックボックスやセレクトは「編集中」が存在しないため対象外。
+ */
+const dirtyNumberFields = new Set<NumberKey>();
+/**
+ * change で確定済みのフィールド。
+ * blur 時の再同期を一度だけスキップする目印(確定値を優先するため)。
+ */
+const committedFields = new Set<string>();
 
 function showStatus(
   messageKey: "statusSaved" | "statusInvalid" | "statusSaveFailed",
@@ -69,10 +83,14 @@ function applySettingsToForm(settings: Settings): void {
   updateShiftConflict(settings.captureModifier);
 }
 
-/** フォーム単位での設定反映。フォーカス中のフィールドだけは入力を潰さない。 */
-function applySettingsToFormKeepFocus(settings: Settings): void {
+/**
+ * 外部から届いた設定変更をフォームへ反映する。
+ * 未確定の入力を持つ数値フィールドだけ上書きを避け、それ以外
+ * (チェックボックス・セレクト・編集していない入力)は即時に追従させる。
+ */
+function applySettingsToFormRespectingDirty(settings: Settings): void {
   for (const [key, element] of Object.entries(fields)) {
-    if (element === document.activeElement) {
+    if (dirtyNumberFields.has(key as NumberKey)) {
       continue;
     }
     const value = settings[key as keyof Settings];
@@ -91,6 +109,14 @@ async function persist(patch: Partial<Settings>): Promise<void> {
     currentSettings = { ...currentSettings, ...patch };
     showStatus("statusSaved");
   } catch {
+    // 書き込み失敗時は画面と保存値が食い違わないよう、保存済みの最新値で戻す。
+    // 再読み込みも失敗した場合は patch 反映前の currentSettings が残る。
+    try {
+      currentSettings = await loadSettings();
+    } catch {
+      // 読み込み失敗時は既存値のまま戻す
+    }
+    applySettingsToFormRespectingDirty(currentSettings);
     showStatus("statusSaveFailed", true);
   }
 }
@@ -106,7 +132,7 @@ interface NumberConstraint {
  */
 function readNumber(
   input: HTMLInputElement,
-  key: "stepThreshold" | "shiftStepSize" | "manualFps",
+  key: NumberKey,
   constraint: NumberConstraint,
 ): number | null {
   const raw = input.value.trim();
@@ -117,6 +143,33 @@ function readNumber(
     return null;
   }
   return constraint.integer === true ? Math.round(value) : value;
+}
+
+/**
+ * 数値フィールドの束縛。
+ * input で未確定を記録し、change(確定)で保存、blur で保留していた
+ * 外部変更を再同期する。確定を伴う blur では入力値を優先し再同期しない。
+ */
+function bindNumberField(key: NumberKey, constraint: NumberConstraint): void {
+  const input = fields[key];
+  input.addEventListener("input", () => {
+    dirtyNumberFields.add(key);
+  });
+  input.addEventListener("change", () => {
+    dirtyNumberFields.delete(key);
+    committedFields.add(key);
+    const value = readNumber(input, key, constraint);
+    if (value !== null) {
+      input.value = String(value);
+      void persist({ [key]: value });
+    }
+  });
+  input.addEventListener("blur", () => {
+    dirtyNumberFields.delete(key);
+    if (!committedFields.delete(key)) {
+      input.value = String(currentSettings[key]);
+    }
+  });
 }
 
 function bindHandlers(): void {
@@ -134,30 +187,9 @@ function bindHandlers(): void {
     updateShiftConflict(modifier);
     void persist({ captureModifier: modifier });
   });
-  fields.stepThreshold.addEventListener("change", () => {
-    const value = readNumber(fields.stepThreshold, "stepThreshold", { min: 1 });
-    if (value !== null) {
-      fields.stepThreshold.value = String(value);
-      void persist({ stepThreshold: value });
-    }
-  });
-  fields.shiftStepSize.addEventListener("change", () => {
-    const value = readNumber(fields.shiftStepSize, "shiftStepSize", {
-      min: 1,
-      integer: true,
-    });
-    if (value !== null) {
-      fields.shiftStepSize.value = String(value);
-      void persist({ shiftStepSize: value });
-    }
-  });
-  fields.manualFps.addEventListener("change", () => {
-    const value = readNumber(fields.manualFps, "manualFps", { min: 0 });
-    if (value !== null) {
-      fields.manualFps.value = String(value);
-      void persist({ manualFps: value });
-    }
-  });
+  bindNumberField("stepThreshold", { min: 1 });
+  bindNumberField("shiftStepSize", { min: 1, integer: true });
+  bindNumberField("manualFps", { min: 0 });
 }
 
 async function init(): Promise<void> {
@@ -172,7 +204,7 @@ async function init(): Promise<void> {
       (next as Record<string, unknown>)[key] = change.newValue;
     }
     currentSettings = next;
-    applySettingsToFormKeepFocus(next);
+    applySettingsToFormRespectingDirty(next);
   });
 }
 

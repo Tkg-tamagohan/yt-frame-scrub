@@ -88,7 +88,7 @@
     "description": "Label for the manual FPS input"
   },
   "optionManualFpsHint": {
-    "message": "0 uses auto-detection and falls back to 30 fps when detection fails",
+    "message": "FPS used when auto-detection fails. 0 falls back to the default of 30",
     "description": "Help text for the manual FPS option"
   },
   "statusSaved": {

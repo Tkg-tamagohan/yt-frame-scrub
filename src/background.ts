@@ -10,8 +10,28 @@ import { t } from "./shared/i18n";
 import { loadSettings, onSettingsChanged, saveSetting } from "./shared/settings";
 
 const DISABLED_BADGE_COLOR = "#9aa0a6";
+const LOG_PREFIX = "[yt-frame-scrub]";
 
-/** バッジとタイトルを現在の enabled 状態へ合わせる。 */
+/**
+ * アイコン操作と表示更新を直列化するキュー。
+ * クリック処理と表示更新が並行に走ると「読み取り→反転→書き込み」が交差し、
+ * 連打時にトグルが消えたり古い表示が新しい表示を上書きしたりする。
+ * 全処理をこのチェーンに載せ、実行時点の最新値を読んでから反映する。
+ */
+let actionQueue: Promise<void> = Promise.resolve();
+
+function enqueue(task: () => Promise<void>): void {
+  actionQueue = actionQueue
+    .then(task)
+    .catch((error: unknown) => {
+      console.error(`${LOG_PREFIX} background task failed`, error);
+    });
+}
+
+/**
+ * バッジとタイトルを現在の enabled 状態へ合わせる。
+ * 他の処理と交差しないよう enqueue 経由でのみ呼ぶ。
+ */
 async function refreshActionUi(): Promise<void> {
   const { enabled } = await loadSettings();
   await chrome.action.setBadgeText({ text: enabled ? "" : t("badgeOff") });
@@ -21,26 +41,24 @@ async function refreshActionUi(): Promise<void> {
 }
 
 chrome.action.onClicked.addListener(() => {
-  void (async () => {
+  enqueue(async () => {
     const { enabled } = await loadSettings();
     await saveSetting("enabled", !enabled);
-    // onSettingsChanged 経由でも refreshActionUi が走るが、
-    // 連打時に保存と表示の順序を確実にするためここでも更新する。
     await refreshActionUi();
-  })();
+  });
 });
 
 // オプションページなど別コンテキストからの enabled 変更にも追従する
 onSettingsChanged((changes) => {
   if (changes.enabled !== undefined) {
-    void refreshActionUi();
+    enqueue(refreshActionUi);
   }
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void refreshActionUi();
+  enqueue(refreshActionUi);
 });
 
 void chrome.action.setBadgeBackgroundColor({ color: DISABLED_BADGE_COLOR });
 // サービスワーカー起動のたびに表示を同期する(バッジは永続化されないため)
-void refreshActionUi();
+enqueue(refreshActionUi);

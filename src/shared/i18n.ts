@@ -16,8 +16,8 @@ export function t(key: string, substitutions?: string | string[]): string {
 
 /**
  * data-i18n 属性を持つ要素の textContent を messages.json の文言で置き換える。
- * `data-i18n-attr-*="key"` 形式で属性への適用もできる
- * (例: data-i18n-attr-title="hintKey" → title 属性を文言で上書き)。
+ * `data-i18n-attrs="属性:キー,属性:キー"` 形式で属性への適用もできる
+ * (例: data-i18n-attrs="title:hintKey" → title 属性を文言で上書き)。
  * documentElement.lang も UI 言語へ揃える。
  */
 export function localizePage(root: ParentNode = document): void {

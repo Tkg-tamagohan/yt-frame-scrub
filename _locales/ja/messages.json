@@ -88,7 +88,7 @@
     "description": "手動 fps 入力のラベル"
   },
   "optionManualFpsHint": {
-    "message": "0 のとき自動検出を使い、検出に失敗した場合は 30 fps にフォールバックします",
+    "message": "fps の自動検出に失敗した場合に使う値。0 のときは既定の 30 にフォールバックします",
     "description": "手動 fps の説明文"
   },
   "statusSaved": {
