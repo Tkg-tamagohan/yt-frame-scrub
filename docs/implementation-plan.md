@@ -12,28 +12,58 @@
 
 ## 構成
 
-リポジトリ構成の想定は次の通りである。
+リポジトリの現行構成は次の通りである。
 
 ```
 yt-frame-scrub/
-├── manifest.json            # MV3 マニフェスト（esbuild の出力先 dist/ へ同梱して生成）
+├── manifest.json            # MV3 マニフェスト（build.mjs が dist/ へコピーして同梱）
+├── build.mjs                # esbuild バンドルと dist/ 生成（manifest・icons・_locales・options の複写）
+├── package.json             # 依存ツールとスクリプト（build / test / typecheck / pack）
+├── package-lock.json        # 依存のロックファイル
+├── tsconfig.json            # TypeScript strict 設定
+├── README.md                # 概要と docs への導線
+├── LICENSE                  # MIT ライセンス
 ├── src/
 │   ├── content/             # コンテンツスクリプト本体
 │   │   ├── index.ts         # エントリ。動画検出と初期化、ナビゲーション追従
+│   │   ├── session.ts       # プレイヤーごとの配線一式（入力・fps・オーバーレイの結合と解除）
+│   │   ├── players.ts       # watch・Shorts・ミニプレイヤーの対象要素の検出
 │   │   ├── stepper.ts       # コマ送り。フレーム番号と currentTime の換算、シークの間引き
 │   │   ├── wheel-accumulator.ts  # deltaY 累積、閾値、慣性減衰、レート上限
 │   │   ├── fps.ts           # fps 検出（統計情報→実測→手動値の 3 段）
+│   │   ├── gating.ts        # 広告・ライブ・再生中の無効化ゲート
 │   │   └── overlay.ts       # Shadow DOM オーバーレイ（フレーム番号、タイムコード、fps）
-│   ├── options/             # 設定画面（HTML+TS）
-│   ├── shared/settings.ts   # chrome.storage.sync の設定スキーマと既定値
-│   └── shared/i18n.ts       # 日英の文言管理
-├── _locales/                # chrome.i18n 用メッセージ（ja, en）
+│   ├── options/             # 設定画面
+│   │   ├── options.html     # 設定画面のマークアップ
+│   │   ├── options.css      # 設定画面のスタイル
+│   │   └── options.ts       # 設定の読み書きと反映
+│   ├── background.ts        # MV3 サービスワーカー（アイコントグルとバッジ表示）
+│   └── shared/
+│       ├── settings.ts      # chrome.storage.sync の設定スキーマと既定値
+│       └── i18n.ts          # 日英の文言管理
+├── _locales/
+│   ├── ja/messages.json     # 日本語メッセージ
+│   └── en/messages.json     # 英語メッセージ
+├── icons/                   # 拡張とアクションのアイコン（icon-16/32/48/128.png）
+├── scripts/
+│   ├── gen-icons.py         # icons/ の生成スクリプト
+│   └── pack.mjs             # dist/ を GitHub Release 用 zip へ梱包
 ├── tests/                   # vitest による単体テスト
-├── docs/                    # 本ディレクトリ
+│   ├── wheel-accumulator.test.ts
+│   ├── stepper.test.ts
+│   ├── fps.test.ts
+│   ├── gating.test.ts
+│   └── overlay-format.test.ts
+├── docs/
+│   ├── requirements-definition.md  # 要件定義書（確定仕様）
+│   ├── decision-records.md         # 仕様決定の記録
+│   ├── implementation-plan.md      # 本書
+│   ├── manual-test.md              # 手動確認手順と既知の制約
+│   └── store-listing.md            # Chrome Web Store 掲載素材
 └── dist/                    # ビルド出力（git 管理外）
 ```
 
-依存方向は `content/` と `options/` が `shared/` を参照する一方向とする。
+依存方向は `content/`、`options/`、`background.ts` が `shared/` を参照する一方向とする。
 中核ロジック（ホイール蓄積、フレーム番号換算）は DOM 非依存の純粋モジュールに分け、単体テスト可能にする。
 
 設定スキーマ（`chrome.storage.sync`）の想定キーは次の通りである。
@@ -79,7 +109,7 @@ yt-frame-scrub/
 
 ### Phase 4: fps 検出
 
-- [x] 「統計情報」の解像度表記の読み取り（実在形式を実機で確認してから実装）
+- [x] 「統計情報」の解像度表記の読み取り（実装済みで、実在形式での実機検証は `docs/manual-test.md`「既知の制約」で継続管理）
 - [x] `totalVideoFrames` と `currentTime` の差分による実測
 - [x] 手動指定値へのフォールバック
 - [x] 受け入れ条件：60fps 動画と 30fps 動画でコマ送りの刻み幅が正しい（オーバーレイまたはログで確認）
@@ -104,7 +134,7 @@ yt-frame-scrub/
 - [x] `/shorts/` ページのプレイヤー検出と同一操作系の提供
 - [x] `yt-navigate-finish` 等のナビゲーションイベントでの再初期化
 - [x] 全画面やシアターモード、ミニプレイヤーでのオーバーレイ追従
-- [x] 広告再生中とライブ配信での無効化（検出方法は実機で確認）
+- [x] 広告再生中とライブ配信での無効化（実装済みで、実広告とライブ配信での検証は MT-20 と MT-21 として `docs/manual-test.md`「既知の制約」で継続管理）
 - [x] 受け入れ条件：watch と Shorts の往復、全画面遷移で機能が壊れない
 
 ### Phase 8: テストとリリース準備

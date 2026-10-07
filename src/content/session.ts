@@ -18,7 +18,7 @@ import { createFrameOverlay } from "./overlay";
 import { isAdPlayback, isLivePlayback, isSteppingEnabled } from "./gating";
 import type { PlayerTarget } from "./players";
 
-/** 「統計情報」(Stats for nerds) パネルのセレクタ。実在形式は実装時検証対象。 */
+/** 「統計情報」(Stats for nerds) パネルのセレクタ。実在形式での検証は未完で、manual-test.md「既知の制約」で管理する。 */
 const STATS_PANEL_SELECTOR = ".html5-video-info-panel";
 
 export interface PlayerSession {
