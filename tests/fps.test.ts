@@ -19,6 +19,7 @@ import {
 class FakeVideo implements FpsMeasurableVideo {
   currentTime = 0;
   paused = true;
+  seeking = false;
   totalVideoFrames = 0;
 
   private listeners = new Map<
@@ -277,7 +278,9 @@ describe("createFpsResolver", () => {
     video.advanceMedia(0.6, 18);
     // シークで currentTime が 60 秒跳ぶ。破棄されなければ 18/60.6 として過小評価される
     video.currentTime += 60;
+    video.seeking = true;
     video.dispatch("seeking");
+    video.seeking = false;
     video.dispatch("seeked");
     video.advanceMedia(1.0, 30); // シーク後の新しい窓で 30fps を実測
     const estimate = resolver.getEstimate();
@@ -319,6 +322,52 @@ describe("createFpsResolver", () => {
     const resolver = createFpsResolver(video);
     video.advanceMedia(1.0, 30);
     expect(resolver.getEstimate().source).toBe("measured");
+    resolver.dispose();
+  });
+
+  it("FPS-27: 先頭が解像度を欠く併記でも先頭の fps を採用する", () => {
+    // 回帰: 「@24 / 1920x1080@60」は先頭の現在値 24 を返すべきで、後続の 60 を拾わない
+    expect(parseFpsFromResolutionText("@24 / 1920x1080@60")).toBe(24);
+    expect(parseFpsFromResolutionText("1920x1080@30 / @60")).toBe(30);
+  });
+
+  it("FPS-28: シーク中の timeupdate は測定に使わない", () => {
+    // 回帰: seeking → timeupdate → seeked → timeupdate の順で
+    // シーク中の差分(30fps 動画に対し 5fps と出る区間)が確定値に混ざらない
+    const video = new FakeVideo();
+    const resolver = createFpsResolver(video);
+    video.play();
+    video.advanceMedia(0.6, 18);
+    video.currentTime += 60;
+    video.seeking = true;
+    video.dispatch("seeking"); // 未確定サンプルを破棄
+    video.advanceMedia(1.0, 5); // シーク中: 無視されなければここで窓が始まる
+    video.advanceMedia(1.0, 5); // シーク中: 無視されなければ 5fps で確定する
+    video.seeking = false;
+    video.dispatch("seeked"); // シーク後の位置で窓をやり直す
+    video.advanceMedia(1.0, 30);
+    const estimate = resolver.getEstimate();
+    expect(estimate.source).toBe("measured");
+    expect(estimate.fps).toBeCloseTo(30, 5);
+    resolver.dispose();
+  });
+
+  it("FPS-29: reset(newVideo) で新しい動画要素へイベントを付け替える", () => {
+    // 回帰: 動画要素の交換後、旧要素のイベントではなく新要素から実測する
+    const oldVideo = new FakeVideo();
+    const newVideo = new FakeVideo();
+    const resolver = createFpsResolver(oldVideo);
+    resolver.reset(newVideo);
+    // 旧要素のイベントは購読されていないため何も確定しない
+    oldVideo.play();
+    oldVideo.advanceMedia(1.0, 30);
+    expect(resolver.getEstimate().source).toBe("default");
+    // 新要素の再生区間で実測する
+    newVideo.play();
+    newVideo.advanceMedia(1.0, 60);
+    const estimate = resolver.getEstimate();
+    expect(estimate.source).toBe("measured");
+    expect(estimate.fps).toBeCloseTo(60, 5);
     resolver.dispose();
   });
 });
