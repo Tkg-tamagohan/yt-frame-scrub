@@ -112,7 +112,8 @@ yt-frame-scrub/
 - [x] ホイール蓄積とフレーム番号換算の単体テストを仕上げる
 - [x] 手動確認手順書（`docs/manual-test.md`）を作成
 - [x] GitHub Release 用 zip のビルド手順
-- [x] Chrome Web Store 掲載物：アイコン、スクリーンショット、説明文（日英）、プライバシー表明
+- [x] Chrome Web Store 掲載物：アイコン、説明文（日英）、プライバシー表明（`docs/store-listing.md` に作成）
+- [ ] ストア用スクリーンショットの撮影（撮影はユーザー作業。構図案は `docs/store-listing.md`）
 - [x] 受け入れ条件：zip がローカル読み込みで動作し、ストア申請に必要な素材が揃う
 
 ## 引き継ぎ手順
