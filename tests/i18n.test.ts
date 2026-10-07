@@ -43,6 +43,11 @@ describe("i18n キー整合", () => {
     }
   });
 
+  it("I18N-04: manifest.json の description が __MSG_ 参照である", () => {
+    const manifest = JSON.parse(manifestRaw) as { description?: string };
+    expect(manifest.description).toMatch(/^__MSG_[A-Za-z0-9_@]+__$/);
+  });
+
   it("I18N-03: options.html の data-i18n / data-i18n-attrs キーが全ロケールに存在する", () => {
     const keys = new Set<string>();
     for (const match of optionsHtmlRaw.matchAll(/data-i18n="([^"]+)"/g)) {
