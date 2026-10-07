@@ -1,0 +1,39 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: タグ名と manifest.json の version の一致を検証
+        run: |
+          node -e '
+            const { readFileSync } = require("fs");
+            const tag = process.env.GITHUB_REF_NAME;
+            const version = JSON.parse(readFileSync("manifest.json", "utf8")).version;
+            const expected = `v${version}`;
+            if (tag !== expected) {
+              console.error(`タグ名 ${tag} は manifest.json の version ${version} と一致しません（期待されるタグ: ${expected}）`);
+              process.exit(1);
+            }
+            console.log(`タグ名 ${tag} と manifest.json の version ${version} が一致しました`);
+          '
+      - run: npm run pack
+      - name: GitHub Release を作成
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "${GITHUB_REF_NAME}" "yt-frame-scrub-${version}.zip" --generate-notes --verify-tag
