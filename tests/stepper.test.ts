@@ -22,6 +22,10 @@ interface Harness {
   /** 予約済みの間引きシークを手動で発火する。 */
   flush: () => void;
   scheduledCount: () => number;
+  /** 動的に fps を差し替える（設定ライブ変更の検証用）。 */
+  setFps: (fps: number) => void;
+  /** 動的にシーク許可を切り替える（再生中の検証用）。 */
+  setSeekAllowed: (v: boolean) => void;
 }
 
 /** seek・タイマーを観測可能にした FrameStepper を組み立てる。 */
@@ -37,12 +41,14 @@ function makeStepper(options: {
   };
   const seeks: number[] = [];
   const steps: StepInfo[] = [];
+  const fpsBox = { v: options.fps ?? 30 };
+  const seekAllowed = { v: true };
   let pending: (() => void) | null = null;
   let scheduled = 0;
 
   const stepper = new FrameStepper({
     video,
-    getFps: () => options.fps ?? 30,
+    getFps: () => fpsBox.v,
     seekIntervalMs: options.seekIntervalMs ?? 40,
     seek: (t) => {
       seeks.push(t);
@@ -55,6 +61,7 @@ function makeStepper(options: {
     cancelSchedule: () => {
       pending = null;
     },
+    shouldSeek: () => seekAllowed.v,
     onStep: (info) => steps.push(info),
   });
 
@@ -69,6 +76,12 @@ function makeStepper(options: {
       fn?.();
     },
     scheduledCount: () => scheduled,
+    setFps: (fps) => {
+      fpsBox.v = fps;
+    },
+    setSeekAllowed: (v) => {
+      seekAllowed.v = v;
+    },
   };
 }
 
@@ -237,5 +250,54 @@ describe("stepper", () => {
     h.video.currentTime = 5; // フレーム 150
     h.stepper.notifySeeked();
     expect(h.stepper.getState().targetFrame).toBe(150);
+  });
+
+  test("ST-19: fps のライブ変更で目標が新 fps 基準の実位置へ再同期する", () => {
+    const h = makeStepper({ fps: 30, currentTime: 10 });
+    h.stepper.stepBy(1);
+    h.flush(); // appliedFrame=301、シーク先 301.5/30
+    h.video.currentTime = 301.5 / 30;
+    // manualFps を 30→60 に変更した想定。次のステップは旧番号 301 を
+    // 60fps で換算して位置を巻き戻すのではなく、実位置 301.5/30=10.05s
+    // のフレーム 603 から +1 されるべき
+    h.setFps(60);
+    h.stepper.stepBy(1);
+    h.flush();
+    expect(h.seeks[1]).toBeCloseTo(604.5 / 60);
+  });
+
+  test("ST-20: fps 変更後に保留中シークが発火しても旧基準の番号で飛ばない", () => {
+    const h = makeStepper({ fps: 30, currentTime: 10 });
+    h.stepper.stepBy(5); // 旧基準で目標 305、シーク未発行
+    h.setFps(60);
+    h.flush();
+    // 発火時点で fps=60 → 目標は実位置 10s→フレーム 600 に再同期され、
+    // シーク先は 600.5/60（旧番号 305 を 60fps 換算した ~5.09s ではない）
+    expect(h.seeks[0]).toBeCloseTo(600.5 / 60);
+  });
+
+  test("ST-21: play 通知で保留中のシーク予約が破棄される（FR-5）", () => {
+    const h = makeStepper({ fps: 30 });
+    h.stepper.stepBy(1);
+    h.stepper.notifyPlay();
+    h.flush();
+    expect(h.seeks).toEqual([]);
+  });
+
+  test("ST-22: 発火時点で再生中（shouldSeek=false）なら保留シークを捨てる", () => {
+    const h = makeStepper({ fps: 30 });
+    h.stepper.stepBy(1);
+    h.setSeekAllowed(false); // 間引き発火前に再生開始した想定
+    h.flush();
+    expect(h.seeks).toEqual([]);
+  });
+
+  test("ST-23: 末尾クランプは中央時刻が duration 未満の最大番号を許す", () => {
+    // duration=1.02, fps=30: フレーム 30 の中央 30.5/30≈1.0167 < 1.02 で有効
+    const h = makeStepper({ fps: 30, duration: 1.02 });
+    h.stepper.stepBy(100);
+    h.flush();
+    expect(h.stepper.getState().targetFrame).toBe(30);
+    expect(h.seeks[0]).toBeCloseTo(30.5 / 30);
   });
 });

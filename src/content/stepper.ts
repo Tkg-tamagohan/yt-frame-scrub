@@ -56,6 +56,12 @@ export interface FrameStepperOptions {
   schedule?: (fn: () => void, ms: number) => unknown;
   /** タイマー解除。省略時は clearTimeout。 */
   cancelSchedule?: (handle: unknown) => void;
+  /**
+   * シーク適用の直前チェック。false を返すとき保留中のシークは捨てる。
+   * 省略時は常に許可（= 常に一時停止中という前提のテスト等向け）。
+   * 実装側では video.paused を渡し、再生開始との順序競合を防ぐ（FR-5）。
+   */
+  shouldSeek?: () => boolean;
   /** コマ送りが発生したときの通知（オーバーレイ配線用の差し込み口）。 */
   onStep?: (info: StepInfo) => void;
 }
@@ -72,10 +78,13 @@ export class FrameStepper {
   private readonly seek: (timeSec: number) => void;
   private readonly schedule: (fn: () => void, ms: number) => unknown;
   private readonly cancelSchedule: (handle: unknown) => void;
+  private readonly shouldSeek: () => boolean;
   private readonly onStep?: (info: StepInfo) => void;
 
   /** 目標フレーム番号。整数で管理する。 */
   private targetFrame: number;
+  /** targetFrame の基準となった fps。getFps() が変化したら再同期する。 */
+  private lastFps: number;
   /** 直前にシークを発行した目標フレーム番号。未発行は null。 */
   private appliedFrame: number | null = null;
   /** 発行済みシークと着地のズレ許容幅（フレーム）。 */
@@ -95,8 +104,10 @@ export class FrameStepper {
     this.cancelSchedule =
       options.cancelSchedule ??
       ((h) => clearTimeout(h as Parameters<typeof clearTimeout>[0]));
+    this.shouldSeek = options.shouldSeek ?? (() => true);
     this.onStep = options.onStep;
     this.targetFrame = this.currentFrameEstimate();
+    this.lastFps = this.fpsOrFallback();
   }
 
   /**
@@ -107,7 +118,7 @@ export class FrameStepper {
     if (!Number.isFinite(delta) || delta === 0) {
       return;
     }
-    const fps = this.fpsOrFallback();
+    const fps = this.syncFps();
     this.targetFrame = this.clampFrame(this.targetFrame + delta, fps);
     this.onStep?.({
       frame: this.targetFrame,
@@ -131,7 +142,7 @@ export class FrameStepper {
    * シークバーや , . キーで動かした等）とみなし、目標を実測へ追従させる。
    */
   notifySeeked(): void {
-    const fps = this.fpsOrFallback();
+    const fps = this.syncFps();
     const actual = this.currentFrameEstimate(fps);
     if (
       this.appliedFrame === null ||
@@ -153,8 +164,19 @@ export class FrameStepper {
    * 目標フレームを実位置へ再同期する。
    */
   notifyPaused(): void {
-    const fps = this.fpsOrFallback();
+    const fps = this.syncFps();
     this.targetFrame = this.clampFrame(this.currentFrameEstimate(fps), fps);
+    this.appliedFrame = null;
+  }
+
+  /**
+   * video の play イベントに対応する。
+   * 再生が始まったら保留中のシークを破棄する（FR-5: 再生中はコマ送りしない）。
+   * ホイール操作直後に再生ボタンが押されると、間引きで待機していた
+   * タイマーが再生中に発火して位置を巻き戻すのを防ぐ。
+   */
+  notifyPlay(): void {
+    this.dispose();
     this.appliedFrame = null;
   }
 
@@ -171,9 +193,16 @@ export class FrameStepper {
     return { targetFrame: this.targetFrame, fps: this.fpsOrFallback() };
   }
 
-  /** 間引き間隔が来たら最新の目標だけをシークへ適用する。 */
+  /**
+   * 間引き間隔が来たら最新の目標だけをシークへ適用する。
+   * 発火時点でシーク不許可（再生開始済み等）なら保留分を捨てる。
+   */
   private flush(): void {
-    const fps = this.fpsOrFallback();
+    const fps = this.syncFps();
+    if (!this.shouldSeek()) {
+      this.appliedFrame = null;
+      return;
+    }
     this.appliedFrame = this.targetFrame;
     this.seek(this.frameToTime(this.targetFrame, fps));
   }
@@ -194,12 +223,16 @@ export class FrameStepper {
     return Math.floor(this.video.currentTime * fps);
   }
 
-  /** 目標番号を [0, 末尾フレーム] に収める。duration 不明なら上限なし。 */
+  /**
+   * 目標番号を [0, 末尾フレーム] に収める。duration 不明なら上限なし。
+   * 末尾フレームは「中央時刻 (f+0.5)/fps が duration 未満」となる
+   * 最大の整数番号で、f < duration*fps - 0.5 の上限を満たす。
+   */
   private clampFrame(frame: number, fps: number): number {
     let maxFrame = Number.POSITIVE_INFINITY;
     const duration = this.video.duration;
     if (Number.isFinite(duration) && duration > 0) {
-      maxFrame = Math.max(0, Math.floor(duration * fps) - 1);
+      maxFrame = Math.max(0, Math.ceil(duration * fps - 0.5) - 1);
     }
     return Math.min(Math.max(Math.trunc(frame), 0), maxFrame);
   }
@@ -211,5 +244,20 @@ export class FrameStepper {
   private fpsOrFallback(): number {
     const fps = this.getFps();
     return Number.isFinite(fps) && fps > 0 ? fps : DEFAULT_FPS;
+  }
+
+  /**
+   * 現在の fps を返す。fps が変化していれば targetFrame を現在位置で
+   * 再同期してから返す（フレーム番号は fps 基準のため、旧基準の番号を
+   * 新 fps で換算すると再生位置が大きく飛ぶ）。
+   */
+  private syncFps(): number {
+    const fps = this.fpsOrFallback();
+    if (fps !== this.lastFps) {
+      this.lastFps = fps;
+      this.targetFrame = this.clampFrame(this.currentFrameEstimate(fps), fps);
+      this.appliedFrame = null;
+    }
+    return fps;
   }
 }

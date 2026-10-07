@@ -103,6 +103,8 @@ function attach(
     // 差し替えて配線する。手動指定がなければ既定 30 にフォールバック。
     getFps: () =>
       settings.manualFps > 0 ? settings.manualFps : DEFAULT_FPS,
+    // 発火時点で再生中なら保留シークを捨てる（FR-5）
+    shouldSeek: () => video.paused,
     onStep: (info: StepInfo) => {
       document.dispatchEvent(
         new CustomEvent<StepInfo>(STEP_EVENT_NAME, { detail: info }),
@@ -112,6 +114,8 @@ function attach(
 
   video.addEventListener("seeked", () => stepper.notifySeeked());
   video.addEventListener("pause", () => stepper.notifyPaused());
+  // 再生開始で保留中のシーク予約を破棄する（FR-5）
+  video.addEventListener("play", () => stepper.notifyPlay());
 
   player.addEventListener(
     "wheel",
