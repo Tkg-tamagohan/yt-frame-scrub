@@ -135,14 +135,29 @@ describe("stepper", () => {
     expect(h.seeks[1]).toBeCloseTo(5.5 / 30);
   });
 
-  test("ST-08: 自前シークの着地ずれは、目標と一致するとき実測へ補正する", () => {
+  test("ST-08: 自前シークが別フレームに着地したときは実測へ補正する", () => {
     const h = makeStepper({ fps: 30 });
     h.stepper.stepBy(1);
     h.flush(); // appliedFrame=1
-    // ブラウザが境界の丸めでフレーム 2 に着地した想定（±1 以内=自前扱い）
-    h.video.currentTime = 1.8 / 30;
+    // ブラウザがフレーム 2 の範囲内に着地した想定（±1 以内=自前扱い）
+    h.video.currentTime = 2.2 / 30;
     h.stepper.notifySeeked();
     expect(h.stepper.getState().targetFrame).toBe(2);
+  });
+
+  test("ST-18: 自前シークがフレーム中央に着地しても目標はずれない", () => {
+    const h = makeStepper({ fps: 30 });
+    h.stepper.stepBy(1);
+    h.flush(); // appliedFrame=1、シーク先 1.5/30
+    // 要求どおりフレーム中央に着地した想定。currentTime*fps=1.5 は
+    // 「フレーム 1 に含まれる」ので推定番号は 1（実機検証の回帰）
+    h.video.currentTime = 1.5 / 30;
+    h.stepper.notifySeeked();
+    expect(h.stepper.getState().targetFrame).toBe(1);
+    // 次の +1 はフレーム 2 を指す（番号のずれを残さない）
+    h.stepper.stepBy(1);
+    h.flush();
+    expect(h.seeks[1]).toBeCloseTo(2.5 / 30);
   });
 
   test("ST-09: pause 通知で目標が実位置へ再同期する（再生後の一時停止）", () => {

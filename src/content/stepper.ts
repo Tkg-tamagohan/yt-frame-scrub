@@ -183,9 +183,15 @@ export class FrameStepper {
     return (frame + 0.5) / fps;
   }
 
-  /** currentTime から現在フレーム番号の推定値を求める。 */
+  /**
+   * currentTime から現在フレーム番号の推定値を求める。
+   * 「currentTime が含まれるフレーム番号」なので切り捨て（floor）を使う。
+   * シーク先のフレーム中央 (N+0.5)/fps に着地すると currentTime*fps は
+   * N+0.5 になり、四捨五入（round）だと N+1 に丸められて目標が 1 コマ
+   * 先行してしまう（実機検証で確認。先頭では frame=0 不可達のループになる）。
+   */
   private currentFrameEstimate(fps = this.fpsOrFallback()): number {
-    return Math.round(this.video.currentTime * fps);
+    return Math.floor(this.video.currentTime * fps);
   }
 
   /** 目標番号を [0, 末尾フレーム] に収める。duration 不明なら上限なし。 */
