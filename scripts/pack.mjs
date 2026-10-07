@@ -18,6 +18,33 @@ const root = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(root, "..");
 const dist = join(repoRoot, "dist");
 
+// manifest.json・package.json・package-lock.json の version が一致していることを先に確認する。
+// タグ名と zip 名はこの値から生成するため、ずれたまま進めるとリリースが壊れる。
+const manifest = JSON.parse(
+  readFileSync(join(repoRoot, "manifest.json"), "utf8"),
+);
+const pkg = JSON.parse(
+  readFileSync(join(repoRoot, "package.json"), "utf8"),
+);
+const lock = JSON.parse(
+  readFileSync(join(repoRoot, "package-lock.json"), "utf8"),
+);
+// package-lock.json はルートと packages[""] の 2 箇所に version を持つ
+const versionSources = [
+  ["manifest.json", manifest.version],
+  ["package.json", pkg.version],
+  ["package-lock.json", lock.version],
+  ['package-lock.json (packages[""])', lock.packages?.[""]?.version],
+];
+if (versionSources.some(([, version]) => version !== manifest.version)) {
+  console.error(
+    `version が一致しません（${versionSources
+      .map(([name, version]) => `${name}: ${version}`)
+      .join(", ")}）。manifest.json と同じ値に更新してください`,
+  );
+  process.exit(1);
+}
+
 // 常に最新の dist/ からパックするため、先にビルドを実行する
 const buildResult = spawnSync("node", [join(repoRoot, "build.mjs")], {
   cwd: repoRoot,
@@ -28,9 +55,6 @@ if (buildResult.status !== 0) {
   process.exit(buildResult.status ?? 1);
 }
 
-const manifest = JSON.parse(
-  readFileSync(join(repoRoot, "manifest.json"), "utf8"),
-);
 const zipName = `yt-frame-scrub-${manifest.version}.zip`;
 const zipPath = join(repoRoot, zipName);
 
@@ -121,3 +145,8 @@ eocd.writeUInt32LE(centralStart, 16);
 
 writeFileSync(zipPath, Buffer.concat([...localParts, centralBuf, eocd]));
 console.log(`${zipName} を作成しました（${entries.length} ファイル）`);
+console.log("");
+console.log("次の手順（詳細は docs/release.md を参照）:");
+console.log(`  git tag v${manifest.version}`);
+console.log(`  git push origin v${manifest.version}`);
+console.log(`  gh release create v${manifest.version} ${zipName}`);

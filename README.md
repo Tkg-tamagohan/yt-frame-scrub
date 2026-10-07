@@ -1,5 +1,7 @@
 # yt-frame-scrub
 
+[![ci](https://github.com/Tkg-tamagohan/yt-frame-scrub/actions/workflows/ci.yml/badge.svg)](https://github.com/Tkg-tamagohan/yt-frame-scrub/actions/workflows/ci.yml)
+
 一時停止中の YouTube 動画をマウスホイールでコマ送りやコマ戻しする Chrome 拡張です。
 フレーム番号とタイムコードをオーバーレイ表示します。
 
@@ -37,7 +39,8 @@ zip は `npm run pack` で生成します（後述）。
 - `npm run build`: `dist/` に読み込み可能な拡張一式を生成
 - `npm run test`: vitest による単体テスト
 - `npm run typecheck`: 型チェック
-- `npm run pack`: `dist/` を zip 化し `yt-frame-scrub-<version>.zip` を生成（GitHub Release 用）
+- `npm run pack`: `dist/` を zip 化し `yt-frame-scrub-<version>.zip` を生成（GitHub Release 用。リリース手順は [docs/release.md](docs/release.md) を参照）
+- `scripts/gen-icons.py`: `icons/` のアイコンを再生成するスクリプト。Pillow（PIL）が必要で、`pip install Pillow` のうえ `python3 scripts/gen-icons.py` を実行する
 
 TypeScript + esbuild + vitest。Manifest V3 準拠。
 
@@ -48,6 +51,7 @@ TypeScript + esbuild + vitest。Manifest V3 準拠。
 - [実装計画](docs/implementation-plan.md)
 - [手動確認手順](docs/manual-test.md)
 - [Chrome Web Store 掲載物](docs/store-listing.md)
+- [リリース手順](docs/release.md)
 
 ## ライセンス
 
