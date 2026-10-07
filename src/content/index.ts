@@ -115,16 +115,25 @@ async function main(): Promise<void> {
     ) {
       return;
     }
+    // 既存セッションの張り替え（動画要素の作り直し追従）では統計情報
+    // パネルが旧動画の表示を残している間があるため、アタッチ時の
+    // 即時検出を抑制してパネル更新（statsObserver 経路）を待つ。
+    const hadSession = session !== null;
     session?.dispose();
     session = null;
     if (target !== null) {
-      session = attachPlayer(target, settings, {
-        onStep: (info: StepInfo) => {
-          document.dispatchEvent(
-            new CustomEvent<StepInfo>(STEP_EVENT_NAME, { detail: info }),
-          );
+      session = attachPlayer(
+        target,
+        settings,
+        {
+          onStep: (info: StepInfo) => {
+            document.dispatchEvent(
+              new CustomEvent<StepInfo>(STEP_EVENT_NAME, { detail: info }),
+            );
+          },
         },
-      });
+        { detectStatsNow: !hadSession },
+      );
       console.log(`${LOG_PREFIX} attached: ${target.page} player`);
     }
   };

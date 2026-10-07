@@ -40,6 +40,17 @@ export interface SessionHooks {
   onStep?: (info: StepInfo) => void;
 }
 
+export interface AttachOptions {
+  /**
+   * アタッチ時に統計情報パネルの検出を一度だけ試みるか（既定 true）。
+   * 遷移に伴うセッション張り替えでは、パネルが旧動画の表示を残したまま
+   * 残存する間がある。その間に読むと旧動画の fps が確定値となり実測値より
+   * 優先されてしまうため、張り替え時は false を渡す
+   * （パネルの内容更新は statsObserver 経路で検出する）。
+   */
+  detectStatsNow?: boolean;
+}
+
 /**
  * ノードが「統計情報」パネル自身かその内部・祖先に関わるか。
  * characterData 変更の target は Text ノードになりうるため
@@ -79,7 +90,9 @@ export function attachPlayer(
   target: PlayerTarget,
   initial: Settings,
   hooks: SessionHooks = {},
+  options: AttachOptions = {},
 ): PlayerSession {
+  const { detectStatsNow = true } = options;
   const { container, video } = target;
   let settings = initial;
 
@@ -194,8 +207,11 @@ export function attachPlayer(
   });
 
   // アタッチ時点で統計情報パネルが既に開かれている場合に備え、
-  // 変化を待たずに一度だけ検出を試みる。
-  fpsResolver.detectFromStatsText();
+  // 変化を待たずに一度だけ検出を試みる。張り替え時は遷移前の表示が
+  // 残っていることがあるため呼び出し側が抑制する。
+  if (detectStatsNow) {
+    fpsResolver.detectFromStatsText();
+  }
 
   return {
     video,
@@ -217,8 +233,10 @@ export function attachPlayer(
       stepper.dispose();
       stepper.notifyPaused();
       accumulator = new WheelAccumulator(configFromSettings(settings));
-      // パネルが遷移をまたいで残っているなら新しい動画の表示へ更新
-      fpsResolver.detectFromStatsText();
+      // ここで detectFromStatsText は呼ばない。遷移直後は統計情報
+      // パネルが旧動画の表示を残している場合があり、その値が確定値
+      // として新動画へ残ると実測より優先されてしまう。パネルの中身が
+      // 新しい動画向けに更新された時点で statsObserver が検出する。
     },
 
     dispose(): void {
