@@ -1,0 +1,106 @@
+{
+  "actionTitle": {
+    "message": "YouTube Frame Scrub",
+    "description": "Title shown on the toolbar action icon"
+  },
+  "stateEnabled": {
+    "message": "Enabled",
+    "description": "State label shown while the feature is enabled (e.g. action title)"
+  },
+  "stateDisabled": {
+    "message": "Disabled",
+    "description": "State label shown while the feature is disabled (e.g. action title)"
+  },
+  "badgeOff": {
+    "message": "OFF",
+    "description": "Short badge text overlaid on the action icon while disabled"
+  },
+  "optionsTitle": {
+    "message": "yt-frame-scrub Settings",
+    "description": "Title and heading of the options page"
+  },
+  "sectionGeneral": {
+    "message": "General",
+    "description": "Section heading for enable/overlay settings"
+  },
+  "sectionScrubbing": {
+    "message": "Frame scrubbing",
+    "description": "Section heading for scroll behavior settings"
+  },
+  "optionEnabled": {
+    "message": "Enable the extension",
+    "description": "Label for the on/off checkbox"
+  },
+  "optionOverlayEnabled": {
+    "message": "Show overlay",
+    "description": "Label for the overlay on/off checkbox"
+  },
+  "optionOverlayEnabledHint": {
+    "message": "Shows frame number, timecode, and estimated FPS inside the player while scrubbing",
+    "description": "Help text for the overlay option"
+  },
+  "optionInvertDirection": {
+    "message": "Invert scroll direction",
+    "description": "Label for the direction inversion checkbox"
+  },
+  "optionInvertDirectionHint": {
+    "message": "When enabled, scrolling down steps forward and scrolling up steps back",
+    "description": "Help text for the direction inversion option"
+  },
+  "optionCaptureModifier": {
+    "message": "Scroll capture condition",
+    "description": "Label for the capture modifier select"
+  },
+  "captureModifierNone": {
+    "message": "Always capture",
+    "description": "Capture condition option (no modifier key)"
+  },
+  "captureModifierAlt": {
+    "message": "While Alt is held",
+    "description": "Capture condition option (Alt)"
+  },
+  "captureModifierCtrl": {
+    "message": "While Ctrl is held",
+    "description": "Capture condition option (Ctrl)"
+  },
+  "captureModifierShift": {
+    "message": "While Shift is held",
+    "description": "Capture condition option (Shift)"
+  },
+  "optionStepThreshold": {
+    "message": "Scroll amount per frame (px)",
+    "description": "Label for the wheel accumulation threshold input"
+  },
+  "optionStepThresholdHint": {
+    "message": "Each time the accumulated scroll delta exceeds this value, the video steps one frame. Lower values are more sensitive",
+    "description": "Help text for the wheel accumulation threshold"
+  },
+  "optionShiftStepSize": {
+    "message": "Frames per Shift+scroll step",
+    "description": "Label for the Shift multi-frame step size input"
+  },
+  "shiftConflictNotice": {
+    "message": "Shift is used as the capture condition, so Shift+scroll multi-frame stepping becomes unavailable",
+    "description": "Notice shown when captureModifier is set to shift"
+  },
+  "optionManualFps": {
+    "message": "Manual FPS",
+    "description": "Label for the manual FPS input"
+  },
+  "optionManualFpsHint": {
+    "message": "FPS used when auto-detection fails. 0 falls back to the default of 30",
+    "description": "Help text for the manual FPS option"
+  },
+  "statusSaved": {
+    "message": "Saved",
+    "description": "Status message shown after settings are saved"
+  },
+  "statusInvalid": {
+    "message": "Invalid value",
+    "description": "Status message shown when input validation fails"
+  },
+  "statusSaveFailed": {
+    "message": "Failed to save",
+    "description": "Status message shown when writing to chrome.storage fails"
+  }
+}

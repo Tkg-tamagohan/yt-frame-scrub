@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="optionsTitle"></title>
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main class="page">
+  <h1 data-i18n="optionsTitle"></h1>
+  <form id="options-form">
+    <section>
+      <h2 data-i18n="sectionGeneral"></h2>
+      <div class="field">
+        <label class="row"><input type="checkbox" id="enabled"><span data-i18n="optionEnabled"></span></label>
+      </div>
+      <div class="field">
+        <label class="row"><input type="checkbox" id="overlayEnabled"><span data-i18n="optionOverlayEnabled"></span></label>
+        <p class="hint" data-i18n="optionOverlayEnabledHint"></p>
+      </div>
+    </section>
+    <section>
+      <h2 data-i18n="sectionScrubbing"></h2>
+      <div class="field">
+        <label class="row"><input type="checkbox" id="invertDirection"><span data-i18n="optionInvertDirection"></span></label>
+        <p class="hint" data-i18n="optionInvertDirectionHint"></p>
+      </div>
+      <div class="field">
+        <label for="captureModifier" data-i18n="optionCaptureModifier"></label>
+        <select id="captureModifier">
+          <option value="none" data-i18n="captureModifierNone"></option>
+          <option value="alt" data-i18n="captureModifierAlt"></option>
+          <option value="ctrl" data-i18n="captureModifierCtrl"></option>
+          <option value="shift" data-i18n="captureModifierShift"></option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="stepThreshold" data-i18n="optionStepThreshold"></label>
+        <input type="number" id="stepThreshold" min="1" step="1" required>
+        <p class="hint" data-i18n="optionStepThresholdHint"></p>
+      </div>
+      <div class="field">
+        <label for="shiftStepSize" data-i18n="optionShiftStepSize"></label>
+        <input type="number" id="shiftStepSize" min="1" step="1" required>
+        <p class="notice" id="shift-conflict" hidden data-i18n="shiftConflictNotice"></p>
+      </div>
+      <div class="field">
+        <label for="manualFps" data-i18n="optionManualFps"></label>
+        <input type="number" id="manualFps" min="0" step="any" required>
+        <p class="hint" data-i18n="optionManualFpsHint"></p>
+      </div>
+    </section>
+  </form>
+  <p id="status" role="status" aria-live="polite"></p>
+</main>
+<script src="options.js"></script>
+</body>
+</html>
