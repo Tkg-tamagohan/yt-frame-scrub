@@ -52,10 +52,22 @@ export async function loadSettings(): Promise<Settings> {
 }
 
 /**
- * 設定を部分的に保存する。スキーマ外のキーは型で排除される。
+ * 設定を部分的に保存する。
+ * 構造的型付けではスキーマ外のキーを持つ値も渡せるため、書き込み前に
+ * スキーマ内キーだけへ絞り込む。undefined の値は書き込まない。
  */
 export async function saveSettings(patch: Partial<Settings>): Promise<void> {
-  await chrome.storage.sync.set(patch);
+  const filtered: Partial<Settings> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (!isSettingsKey(key) || value === undefined) {
+      continue;
+    }
+    (filtered as Record<string, unknown>)[key] = value;
+  }
+  if (Object.keys(filtered).length === 0) {
+    return;
+  }
+  await chrome.storage.sync.set(filtered);
 }
 
 /**

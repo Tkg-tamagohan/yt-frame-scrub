@@ -6,7 +6,7 @@
   "permissions": ["storage"],
   "content_scripts": [
     {
-      "matches": ["*://*.youtube.com/*"],
+      "matches": ["https://*.youtube.com/*"],
       "js": ["content.js"]
     }
   ],
