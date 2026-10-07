@@ -13,6 +13,7 @@ import {
   onSettingsChanged,
   saveSettings,
   type Settings,
+  type SettingsKey,
 } from "../shared/settings";
 
 const fields = {
@@ -34,9 +35,22 @@ const statusElement = document.getElementById("status") as HTMLElement;
 
 type NumberKey = "stepThreshold" | "shiftStepSize" | "manualFps";
 
+const NUMBER_KEYS: readonly string[] = [
+  "stepThreshold",
+  "shiftStepSize",
+  "manualFps",
+];
+
+function isNumberKey(key: string): key is NumberKey {
+  return NUMBER_KEYS.includes(key);
+}
+
 /** 直近に確定した設定値。入力不正時の差し戻しと外部変更の反映に使う。 */
 let currentSettings: Settings;
 let statusTimer: number | undefined;
+/** 保存処理の通し番号。失敗時の復元が後続の保存を上書きしないよう判定に使う。 */
+let persistSeq = 0;
+const lastPersistByKey = new Map<SettingsKey, number>();
 
 /**
  * 入力途中(未確定)の数値フィールド。
@@ -83,40 +97,76 @@ function applySettingsToForm(settings: Settings): void {
   updateShiftConflict(settings.captureModifier);
 }
 
+function setFieldValue(key: SettingsKey, value: Settings[SettingsKey]): void {
+  const element = fields[key];
+  if (element instanceof HTMLInputElement && element.type === "checkbox") {
+    element.checked = value as boolean;
+  } else {
+    element.value = String(value);
+  }
+}
+
 /**
  * 外部から届いた設定変更をフォームへ反映する。
  * 未確定の入力を持つ数値フィールドだけ上書きを避け、それ以外
  * (チェックボックス・セレクト・編集していない入力)は即時に追従させる。
  */
 function applySettingsToFormRespectingDirty(settings: Settings): void {
-  for (const [key, element] of Object.entries(fields)) {
-    if (dirtyNumberFields.has(key as NumberKey)) {
+  for (const key of Object.keys(fields) as SettingsKey[]) {
+    if (isNumberKey(key) && dirtyNumberFields.has(key)) {
       continue;
     }
-    const value = settings[key as keyof Settings];
-    if (element instanceof HTMLInputElement && element.type === "checkbox") {
-      element.checked = value as boolean;
-    } else {
-      element.value = String(value);
-    }
+    setFieldValue(key, settings[key]);
   }
   updateShiftConflict(settings.captureModifier);
 }
 
+/**
+ * 保存に失敗したキーだけを保存済みの値へ戻す。
+ * 全項目の再読み込みで別項目の新しい値を古いスナップショットで上書きする
+ * 競合を避けるため、復元は失敗した patch のキーに限定する。
+ * 同じキーへの後続の保存や未確定の入力は上書きしない
+ * (処理番号が更新されているキーは復元対象外とする)。
+ */
+async function revertFailedKeys(keys: SettingsKey[], seq: number): Promise<void> {
+  try {
+    const stored = await loadSettings();
+    for (const key of keys) {
+      if (lastPersistByKey.get(key) !== seq) {
+        continue;
+      }
+      // マップ型への書き込みはキー単位の型が絞れないため Record 経由で代入する
+      (currentSettings as unknown as Record<string, unknown>)[key] = stored[key];
+      if (!(isNumberKey(key) && dirtyNumberFields.has(key))) {
+        setFieldValue(key, stored[key]);
+      }
+    }
+  } catch {
+    // 再読み込みも失敗した場合は patch 反映前の currentSettings で戻す
+    for (const key of keys) {
+      if (
+        lastPersistByKey.get(key) === seq &&
+        !(isNumberKey(key) && dirtyNumberFields.has(key))
+      ) {
+        setFieldValue(key, currentSettings[key]);
+      }
+    }
+  }
+  updateShiftConflict(currentSettings.captureModifier);
+}
+
 async function persist(patch: Partial<Settings>): Promise<void> {
+  const seq = ++persistSeq;
+  const keys = Object.keys(patch) as SettingsKey[];
+  for (const key of keys) {
+    lastPersistByKey.set(key, seq);
+  }
   try {
     await saveSettings(patch);
     currentSettings = { ...currentSettings, ...patch };
     showStatus("statusSaved");
   } catch {
-    // 書き込み失敗時は画面と保存値が食い違わないよう、保存済みの最新値で戻す。
-    // 再読み込みも失敗した場合は patch 反映前の currentSettings が残る。
-    try {
-      currentSettings = await loadSettings();
-    } catch {
-      // 読み込み失敗時は既存値のまま戻す
-    }
-    applySettingsToFormRespectingDirty(currentSettings);
+    await revertFailedKeys(keys, seq);
     showStatus("statusSaveFailed", true);
   }
 }
@@ -147,13 +197,15 @@ function readNumber(
 
 /**
  * 数値フィールドの束縛。
- * input で未確定を記録し、change(確定)で保存、blur で保留していた
- * 外部変更を再同期する。確定を伴う blur では入力値を優先し再同期しない。
+ * input で未確定を記録し(再編集時は確定済みフラグも消して blur の再同期を
+ * 有効にする)、change(確定)で保存、blur で保留していた外部変更を再同期する。
+ * 確定を伴う blur では入力値を優先し再同期しない。
  */
 function bindNumberField(key: NumberKey, constraint: NumberConstraint): void {
   const input = fields[key];
   input.addEventListener("input", () => {
     dirtyNumberFields.add(key);
+    committedFields.delete(key);
   });
   input.addEventListener("change", () => {
     dirtyNumberFields.delete(key);
