@@ -123,9 +123,9 @@ const SHADOW_STYLES = `
     right: 8px;
     bottom: 48px;
     z-index: 60;
+    pointer-events: none;
   }
   .overlay {
-    pointer-events: none;
     white-space: nowrap;
     text-align: right;
     font-family: monospace;
@@ -161,6 +161,7 @@ export function createFrameOverlay(options: OverlayOptions = {}): FrameOverlay {
   const fpsEl = document.createElement("div");
   box.append(frameEl, timeEl, fpsEl);
   shadow.append(style, box);
+  resetReadout();
 
   let enabled = true;
   let attachedContainer: HTMLElement | null = null;
@@ -190,17 +191,37 @@ export function createFrameOverlay(options: OverlayOptions = {}): FrameOverlay {
   }
 
   function restorePositionPatch(): void {
-    if (positionPatch !== null) {
-      positionPatch.container.style.position = positionPatch.previous;
-      positionPatch = null;
+    if (positionPatch === null) {
+      return;
+    }
+    const { container, previous } = positionPatch;
+    positionPatch = null;
+    // マウント中にページ側が位置指定を更新していた場合は、
+    // その更新を消さないよう、このモジュールが設定した relative の
+    // まま残っているときだけ元の値へ戻す。
+    if (container.style.position === "relative") {
+      container.style.position = previous;
     }
   }
 
+  function resetReadout(): void {
+    frameEl.textContent = UNKNOWN_FRAME;
+    timeEl.textContent = UNKNOWN_TIMECODE;
+    fpsEl.textContent = UNKNOWN_FPS;
+  }
+
   function attach(container: HTMLElement): void {
-    if (attachedContainer === container) {
+    if (attachedContainer === container && host.parentElement === container) {
       return;
     }
-    restorePositionPatch();
+    if (attachedContainer !== container) {
+      restorePositionPatch();
+      // 前のコンテナ(動画)の表示値とフェードアウト予約を持ち越さない。
+      // 新しいコンテナでは次の update / notifyActivity まで表示しない。
+      clearFadeTimer();
+      hide();
+      resetReadout();
+    }
     if (getComputedStyle(container).position === "static") {
       positionPatch = {
         container,
@@ -227,7 +248,7 @@ export function createFrameOverlay(options: OverlayOptions = {}): FrameOverlay {
   }
 
   function notifyActivity(): void {
-    if (!enabled || attachedContainer === null) {
+    if (!enabled || !isAttached()) {
       return;
     }
     show();
@@ -243,7 +264,7 @@ export function createFrameOverlay(options: OverlayOptions = {}): FrameOverlay {
   }
 
   function isAttached(): boolean {
-    return attachedContainer !== null;
+    return attachedContainer !== null && host.parentElement === attachedContainer;
   }
 
   return {
