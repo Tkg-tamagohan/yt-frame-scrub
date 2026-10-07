@@ -91,8 +91,10 @@ function visibleFraction(el: Element): number {
  * Shorts のアクティブなプレイヤーを返す。
  * レンダラーが複数 DOM に残り得るため、候補ごとにスコアを付けて最良のものを選ぶ。
  * - `is-active` 属性: あれば最優先（現行 YouTube では付かないことを実機確認済み）
- * - ビューポート占有率: 画面に最も映っているレンダラーを優先
- * - 再生中の video: 遷移直後の半分表示状態のタイブレーク用
+ * - ビューポート占有率×100: 画面に最も映っているレンダラーを主指標とする
+ * - 再生中の video: 占有率がほぼ同じときのタイブレーク用（+0.5、占有率の
+ *   差が小さいときにだけ効く。隣接する再生中レンダラーが、より大きく
+ *   見える一時停止中レンダラーを上回らないよう重みは小さくする）
  * 動画を持つレンダラーが一つも無ければ null（再評価に委ねる）。
  */
 export function findShortsPlayer(): PlayerTarget | null {
@@ -111,9 +113,9 @@ export function findShortsPlayer(): PlayerTarget | null {
   let best = candidates[0];
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const candidate of candidates) {
-    let score = visibleFraction(candidate.renderer);
+    let score = visibleFraction(candidate.renderer) * 100;
     if (candidate.renderer.hasAttribute("is-active")) {
-      score += 2;
+      score += 1000;
     }
     if (!candidate.video.paused) {
       score += 0.5;
@@ -130,7 +132,40 @@ export function findShortsPlayer(): PlayerTarget | null {
   };
 }
 
-/** 現在のパス名に応じて対象プレイヤーを返す。対象外ページでは null。 */
+/**
+ * 対象外ページ（検索結果など）に残るミニプレイヤーを探す。
+ * YouTube は watch から別ページへ遷移してもミニプレイヤーへ同じ動画要素を
+ * 残す（要件定義書「対象範囲」: ミニプレイヤーでも同一の動画要素を追従）。
+ * `ytd-miniplayer` 配下の動画、またはプレイヤーの `ytp-mini` モード印だけを
+ * 対象とし、休眠中のプレイヤー（ページ内に残る #movie_player 等）は拾わない。
+ */
+export function findMiniplayer(): PlayerTarget | null {
+  const inMini = document.querySelector<HTMLVideoElement>(
+    `ytd-miniplayer ${MAIN_VIDEO_SELECTOR}`,
+  );
+  if (inMini !== null) {
+    return {
+      page: "watch",
+      container: findPlayerContainer(inMini),
+      video: inMini,
+    };
+  }
+  for (const video of document.querySelectorAll<HTMLVideoElement>(
+    MAIN_VIDEO_SELECTOR,
+  )) {
+    const container = findPlayerContainer(video);
+    if (container.classList.contains("ytp-mini")) {
+      return { page: "watch", container, video };
+    }
+  }
+  return null;
+}
+
+/**
+ * 現在のパス名に応じて対象プレイヤーを返す。
+ * 対象外ページでもミニプレイヤーが表示中ならそちらを返す
+ * （ミニプレイヤーでも同一の動画要素を追従する要件のため）。
+ */
 export function findActivePlayer(
   pathname: string = location.pathname,
 ): PlayerTarget | null {
@@ -140,6 +175,6 @@ export function findActivePlayer(
     case "shorts":
       return findShortsPlayer();
     default:
-      return null;
+      return findMiniplayer();
   }
 }

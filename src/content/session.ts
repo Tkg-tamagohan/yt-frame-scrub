@@ -83,7 +83,7 @@ export function attachPlayer(
   const { container, video } = target;
   let settings = initial;
 
-  const accumulator = new WheelAccumulator(configFromSettings(settings));
+  let accumulator = new WheelAccumulator(configFromSettings(settings));
 
   // fps は 3 段検出（統計情報 → 実測 → 手動値）のリゾルバ経由で取得する。
   // manualFps > 0 は検出失敗時の第 3 段であり、既定 30 より優先される
@@ -193,6 +193,10 @@ export function attachPlayer(
     attributeFilter: ["hidden", "style"],
   });
 
+  // アタッチ時点で統計情報パネルが既に開かれている場合に備え、
+  // 変化を待たずに一度だけ検出を試みる。
+  fpsResolver.detectFromStatsText();
+
   return {
     video,
     container,
@@ -206,6 +210,15 @@ export function attachPlayer(
 
     notifyNavigated(): void {
       fpsResolver.reset();
+      // video 要素が使い回される遷移では旧動画の途中状態を持ち越さない。
+      // 間引き待機中のシークが新動画へ発火するのを防ぎ、目標フレームを
+      // 新しい動画の現在位置へ再同期する。ホイール蓄積も捨てるため
+      // アキュムレータは生成し直す（reset API は持たない）。
+      stepper.dispose();
+      stepper.notifyPaused();
+      accumulator = new WheelAccumulator(configFromSettings(settings));
+      // パネルが遷移をまたいで残っているなら新しい動画の表示へ更新
+      fpsResolver.detectFromStatsText();
     },
 
     dispose(): void {
